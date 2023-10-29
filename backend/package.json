@@ -25,7 +25,8 @@
     "serverless-iam-roles-per-function": "^3.2.0",
     "serverless-webpack": "^5.13.0",
     "uuid": "^9.0.1",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "aws-sdk": "^2.433.0"
   },
   "devDependencies": {
     "serverless-plugin-tracing": "^2.0.0"

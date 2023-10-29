@@ -26,7 +26,7 @@ export async function createTodo(createTodoRequest, userId) {
         userId: userId,
         createdAt,
         done: false,
-        attachmentUrl: s3AttachUrl,
+        attachmentUrl: null,
         name: createTodoRequest.name,
         dueDate: createTodoRequest.dueDate
     }

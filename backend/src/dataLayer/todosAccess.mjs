@@ -3,15 +3,18 @@ import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
 import AWSXRay from 'aws-xray-sdk-core'
 import { createLogger } from '../utils/logger.mjs'
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
-
+import * as AWS from "aws-sdk";
+ 
+const XAWS = AWSXRay.captureAWS(AWS);
+ 
 // TODO: Implement dataLayer
 const logger = createLogger("TodoAccess");
 const url_expiration = process.env.SIGNED_URL_EXPIRATION;
-
+ 
 export class TodosAccess {
     constructor(
-        documentClient = AWSXRay.captureAWSv3Client(new DynamoDB()),
-        S3 = new S3Client(),
+        documentClient = createDynamoDBClient(),
+        S3 = new XAWS.S3({ signatureVersion: "v4" }),
         todosTable = process.env.TODOS_TABLE,
         todosIndex = process.env.TODOS_CREATED_AT_INDEX,
         s3_bucket_name = process.env.ATTACHMENT_S3_BUCKET
@@ -23,11 +26,11 @@ export class TodosAccess {
         this.dynamoDbClient = DynamoDBDocument.from(this.documentClient)
         this.bucket_name = s3_bucket_name
     }
-
+ 
     // Get all todo
     async getAll(userId) {
         logger.info("Call function getAll");
-
+ 
         const result = await this.dynamoDbClient.query({
             TableName: this.todosTable,
             IndexName: this.todosIndex,
@@ -38,24 +41,24 @@ export class TodosAccess {
         })
         return result.Items
     }
-
+ 
     // Create toDo
     async createTodo(todo) {
         logger.info("Call function createTodo");
         console.log('Item todo', todo)
-
+ 
         await this.dynamoDbClient.put({
             TableName: this.todosTable,
             Item: todo,
         });
-
+ 
         return todo;
     }
-
+ 
     // update Todo
     async updateTodo(userId, toDoId, updateToDoRequest) {
         logger.info("Call function updateTodo");
-
+ 
         try {
             await this.dynamoDbClient.update({
                 TableName: this.todosTable,
@@ -77,17 +80,17 @@ export class TodosAccess {
                 },
                 ReturnValues: "UPDATED_NEW",
             });
-
+ 
             return updateToDoRequest;
         } catch (e) {
             return "Error";
         }
     }
-
+ 
     // Delete Todo
     async deteteTodo(userId, toDoId) {
         logger.info("Call function deleteTodo");
-
+ 
         try {
             await this.dynamoDbClient.delete({
                 TableName: this.todosTable,
@@ -96,19 +99,19 @@ export class TodosAccess {
                     toDoId,
                 },
             });
-
+ 
             return "Success";
         } catch (e) {
             return "Error";
         }
     }
-
+ 
     // Update updateAttachmentPresignedUrl
     async updateAttachmentPresignedUrl(userId, toDoId) {
         logger.info("Call function updateAttachmentPresignedUrl");
-
+ 
         try {
-
+ 
             const uploadUrl = this.S3.getSignedUrl("putObject", {
                 Bucket: this.bucket_name,
                 Key: toDoId,
@@ -127,7 +130,7 @@ export class TodosAccess {
                 },
                 ReturnValues: "UPDATED_NEW",
             });
-
+ 
             return uploadUrl;
             
         } catch (e) {
@@ -135,3 +138,14 @@ export class TodosAccess {
         }
     }
 }
+ 
+function createDynamoDBClient() {
+    if (process.env.IS_OFFLINE) {
+      console.log("Creating a local DynamoDB instance");
+      return new XAWS.DynamoDB.DocumentClient({
+        region: "localhost",
+        endpoint: "http://localhost:8000",
+      });
+    }
+    return new XAWS.DynamoDB.DocumentClient();
+  }
